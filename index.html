@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#071416" />
   <title>ركلات لا النافية للجنس</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23071416'/%3E%3Ccircle cx='32' cy='32' r='20' fill='%23f5f1e8'/%3E%3Cpath d='M32 18l8 6-3 9H27l-3-9zM16 29l9 3 3 10-7 6M48 29l-9 3-3 10 7 6M27 52l5-9 5 9' fill='%23171b1d'/%3E%3C/svg%3E" />
@@ -18,13 +18,14 @@
     <div class="vignette"></div>
 
     <header id="hud" class="hud hidden" aria-live="polite">
-      <div class="hud-team"><span id="teamSwatch"></span><strong id="hudTeam">السد</strong><small>ضد</small><strong id="opponentName">العربي</strong></div>
-      <div class="hud-score">
-        <span>الدقة <b id="hudCorrect">0</b></span>
-        <span>الأهداف <b id="hudGoals">0</b></span>
-        <span>الركلة <b id="hudKick">1 / 5</b></span>
+      <div id="rightTeam" class="hud-team team-right"><span id="teamSwatch"></span><strong id="hudTeam">السد</strong></div>
+      <div class="hud-center">
+        <small>استاد آركان الرياضي · ركلات الترجيح</small>
+        <strong id="hudGoals">0 - 0</strong>
+        <div class="hud-score"><span>الركلة <b id="hudKick">1 / 5</b></span><span>الدقة <b id="hudCorrect">0</b></span></div>
+        <div class="streak" id="streakMeter"><span></span><em>ركلة الحسم</em></div>
       </div>
-      <div class="streak" id="streakMeter"><span></span><em>ركلة الحسم</em></div>
+      <div id="leftTeam" class="hud-team team-left"><strong id="opponentName">العربي</strong><span id="opponentSwatch"></span></div>
     </header>
 
     <button id="teacherBtn" class="icon-button top-action" aria-label="وضع المعلم" title="وضع المعلم"><i data-lucide="settings-2"></i></button>
@@ -32,12 +33,15 @@
 
     <main id="uiLayer">
       <section id="startScreen" class="screen active start-screen">
+        <div class="stadium-badge">مباشر من استاد آركان الرياضي</div>
         <div class="eyebrow">الوحدة الثالثة · بناء الجملة</div>
         <h1><span>ركلات</span> لا النافية للجنس</h1>
         <p>أجب بدقة، اختر زاوية المرمى، ثم سدّد.</p>
         <button id="startBtn" class="primary-btn">ابدأ المباراة <i data-lucide="circle-play"></i></button>
-        <div class="start-meta"><span>الصف العاشر</span><span>لا النافية للجنس (1)</span></div>
+        <div class="start-meta"><span>الصف العاشر</span><span>لا النافية للجنس (1)</span><span>إعداد: محمد المعصراوي</span></div>
       </section>
+
+      <div id="commentaryBar" class="commentary-bar hidden" aria-live="polite">أهلًا بكم في استاد آركان الرياضي</div>
 
       <section id="clubScreen" class="screen club-screen">
         <div class="section-head">
@@ -86,7 +90,7 @@
         <div class="score-ring"><strong id="finalAccuracy">0%</strong><span>الدقة النحوية</span></div>
         <div class="final-stats">
           <div><b id="finalCorrect">0/5</b><span>إجابات صحيحة</span></div>
-          <div><b id="finalGoals">0/5</b><span>أهداف</span></div>
+          <div><b id="finalGoals">0 - 0</b><span>نتيجة الفريقين</span></div>
           <div><b id="finalStreak">0</b><span>أطول سلسلة</span></div>
         </div>
         <p id="finalMessage"></p>
@@ -107,7 +111,7 @@
     <dialog id="teacherDialog">
       <form method="dialog" class="teacher-panel">
         <div class="dialog-head"><div><span>إعدادات سريعة</span><h2>وضع المعلم</h2></div><button value="cancel" class="icon-button" aria-label="إغلاق"><i data-lucide="x"></i></button></div>
-        <fieldset><legend>عدد الركلات</legend><label><input type="radio" name="kickCount" value="5" checked> 5 ركلات</label><label><input type="radio" name="kickCount" value="10"> 10 ركلات</label></fieldset>
+        <fieldset><legend>عدد الركلات لكل فريق</legend><label><input type="radio" name="kickCount" value="5" checked> 5 ركلات لكل فريق</label><label><input type="radio" name="kickCount" value="10"> 10 ركلات لكل فريق</label></fieldset>
         <fieldset><legend>مستوى الأسئلة</legend><label><input type="radio" name="difficulty" value="all" checked> متدرج</label><label><input type="radio" name="difficulty" value="basic"> أساسي</label><label><input type="radio" name="difficulty" value="advanced"> متقدم</label></fieldset>
         <label class="toggle-row"><span>المؤثرات السينمائية</span><input id="cinematicToggle" type="checkbox" checked></label>
         <label class="toggle-row"><span>الصوت</span><input id="audioToggle" type="checkbox" checked></label>
