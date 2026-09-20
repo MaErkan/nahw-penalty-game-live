@@ -18,7 +18,7 @@
     <div class="vignette"></div>
 
     <header id="hud" class="hud hidden" aria-live="polite">
-      <div class="hud-team"><span id="teamSwatch"></span><strong id="hudTeam">السد</strong></div>
+      <div class="hud-team"><span id="teamSwatch"></span><strong id="hudTeam">السد</strong><small>ضد</small><strong id="opponentName">العربي</strong></div>
       <div class="hud-score">
         <span>الدقة <b id="hudCorrect">0</b></span>
         <span>الأهداف <b id="hudGoals">0</b></span>
@@ -41,8 +41,9 @@
 
       <section id="clubScreen" class="screen club-screen">
         <div class="section-head">
-          <span>التشكيلة</span>
-          <h2>اختر النادي الذي ستمثله</h2>
+          <span>الفريقان</span>
+          <h2>اختر فريقك ثم الفريق المنافس</h2>
+          <p id="teamChoiceHint">الاختيار الأول لفريقك، والثاني للمنافس</p>
         </div>
         <div id="clubGrid" class="club-grid"></div>
         <button id="toMatchBtn" class="primary-btn" disabled>إلى الملعب <i data-lucide="chevron-left"></i></button>

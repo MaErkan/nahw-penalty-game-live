@@ -6,9 +6,9 @@ import { QUESTIONS, CLUBS } from "./questions.js";
 const $ = (id) => document.getElementById(id);
 const screens = [...document.querySelectorAll(".screen")];
 const state = {
-  phase: "start", club: null, kickCount: 5, difficulty: "all", cinematic: true, sound: true,
+  phase: "start", club: null, opponentClub: null, kickCount: 5, difficulty: "all", cinematic: true, sound: true,
   questions: [], kickIndex: 0, correct: 0, goals: 0, streak: 0, bestStreak: 0,
-  mistakes: [], selectedAim: null, firstAttempt: true, currentShot: null, special: false
+  mistakes: [], selectedAim: null, firstAttempt: true, answerCorrect: true, currentShot: null, special: false
 };
 
 function showScreen(id) {
@@ -31,11 +31,16 @@ function buildClubs() {
       <div class="club-mark"></div><b>${club.name}</b>
     </button>`).join("");
   document.querySelectorAll(".club-card").forEach(card => card.addEventListener("click", () => {
-    document.querySelectorAll(".club-card").forEach(c => c.classList.remove("selected"));
-    card.classList.add("selected");
-    state.club = CLUBS[Number(card.dataset.club)];
-    $("toMatchBtn").disabled = false;
-    applyKit(state.club);
+    const picked=CLUBS[Number(card.dataset.club)];
+    if(state.club===picked){state.club=state.opponentClub;state.opponentClub=null}
+    else if(state.opponentClub===picked){state.opponentClub=null}
+    else if(!state.club){state.club=picked}
+    else if(!state.opponentClub){state.opponentClub=picked}
+    else{state.club=picked;state.opponentClub=null}
+    document.querySelectorAll(".club-card").forEach(c=>{const club=CLUBS[Number(c.dataset.club)];c.classList.toggle("selected",club===state.club||club===state.opponentClub);c.classList.toggle("selected-primary",club===state.club);c.classList.toggle("selected-opponent",club===state.opponentClub)});
+    $("teamChoiceHint").textContent=!state.club?"اختر فريقك":!state.opponentClub?`فريقك: ${state.club.name} — اختر المنافس`:`${state.club.name} ضد ${state.opponentClub.name}`;
+    $("toMatchBtn").disabled = !(state.club&&state.opponentClub);
+    applyKit();
     audio.tap();
   }));
 }
@@ -56,6 +61,7 @@ function resetMatch() {
 
 function updateHUD() {
   $("hudTeam").textContent = state.club?.name || "—";
+  $("opponentName").textContent = state.opponentClub?.name || "—";
   $("teamSwatch").style.background = state.club?.primary || "#fff";
   $("hudCorrect").textContent = `${state.correct}/${Math.max(1, state.kickIndex + (state.phase === "final" ? 0 : 1))}`;
   $("hudGoals").textContent = state.goals;
@@ -66,6 +72,7 @@ function updateHUD() {
 function renderQuestion() {
   const q = state.questions[state.kickIndex];
   state.firstAttempt = true;
+  state.answerCorrect = true;
   state.special = state.streak >= 3;
   $("questionCategory").textContent = q.category;
   $("questionNumber").textContent = String(state.kickIndex + 1).padStart(2, "0");
@@ -97,14 +104,18 @@ function answerQuestion(button, q) {
     updateHUD();
   } else {
     button.classList.add("wrong");
-    button.disabled = true;
+    document.querySelectorAll(".option-btn").forEach(b => b.disabled = true);
+    document.querySelector(`.option-btn[data-index="${q.correct}"]`)?.classList.add("correct");
     if (state.firstAttempt) {
       state.mistakes.push({ question: q.question, selected: q.options[index], correct: q.options[q.correct], rule: q.rule });
       state.firstAttempt = false;
       state.streak = 0;
     }
-    $("feedback").textContent = `راجع القاعدة وحاول مرة أخرى: ${q.rule}`;
+    state.answerCorrect = false;
+    state.special = false;
+    $("feedback").textContent = `إجابة غير صحيحة. ستدخل للتسديد، لكن هذه الركلة لن تصيب المرمى. ${q.rule}`;
     $("feedback").className = "feedback bad";
+    $("continueBtn").classList.remove("hidden");
     audio.wrong();
     updateHUD();
   }
@@ -124,7 +135,7 @@ function showFinal() {
   state.phase = "final";
   $("hud").classList.add("hidden");
   const accuracy = Math.round(state.correct / state.kickCount * 100);
-  $("finalClub").textContent = state.club.name;
+  $("finalClub").textContent = `${state.club.name} × ${state.opponentClub.name}`;
   $("finalAccuracy").textContent = `${accuracy}%`;
   $("finalCorrect").textContent = `${state.correct}/${state.kickCount}`;
   $("finalGoals").textContent = `${state.goals}/${state.kickCount}`;
@@ -225,11 +236,13 @@ function makePerson(primary=0xffffff,secondary=0x222222,keeper=false){
     const shoe=new THREE.Mesh(new THREE.BoxGeometry(.3,.17,.58),boot);shoe.position.set(0,-1.38,-.13);leg.add(shoe);
     leg.position.set(side*.23,1.43,0);leg.traverse(o=>{if(o.isMesh)o.castShadow=true});g.add(leg);joints.legs.push(leg);
   });
-  g.userData={kit,shorts,joints,torso};return g;
+  g.userData={kit,shorts,socks,boot,joints,torso};return g;
 }
 const QATAR_MAROON=0x8a1538,PLAYER_WHITE=0xf7f7f2,KEEPER_GREEN=0x087a52;
 const player=new THREE.Group(),playerFallback=makePerson(QATAR_MAROON,PLAYER_WHITE);player.add(playerFallback);player.userData=playerFallback.userData;player.position.set(0,0,9);player.rotation.y=Math.PI;scene.add(player);
 const keeper=new THREE.Group(),keeperFallback=makePerson(KEEPER_GREEN,KEEPER_GREEN,true);keeper.add(keeperFallback);keeper.userData=keeperFallback.userData;keeper.scale.set(.96,.96,.96);keeper.position.set(0,0,-19.2);scene.add(keeper);
+const teammateActors=[[-9,2],[9,1]].map(([x,z],i)=>{const actor=makePerson(QATAR_MAROON,PLAYER_WHITE);actor.scale.setScalar(.82);actor.position.set(x,0,z);actor.rotation.y=i?-.55:.55;scene.add(actor);return actor});
+const opponentActors=[[-8,-8],[8,-10]].map(([x,z],i)=>{const actor=makePerson(0xf7f7f2,0x263238);actor.scale.setScalar(.84);actor.position.set(x,0,z);actor.rotation.y=i?.45:-.45;scene.add(actor);return actor});
 const actorMixers=[];
 
 function makeJerseyNumber(value,isBack){
@@ -260,19 +273,20 @@ function restoreRig(root){
 }
 function prepareRealActor(gltf,root,fallback,isKeeper=false){
   const model=cloneSkeleton(gltf.scene);
+  const materials={shirt:[],accent:[],pants:[],socks:[],shoes:[]};
   model.traverse(node=>{if(!node.isMesh)return;node.castShadow=true;node.receiveShadow=true;node.frustumCulled=false;node.material=node.material.clone();const n=node.material.name||"";
     if(isKeeper){
-      if(/Shirt/i.test(n))node.material.color.set(KEEPER_GREEN);
-      else if(/Pants/i.test(n))node.material.color.set(KEEPER_GREEN);
-      else if(/Socks/i.test(n))node.material.color.set(0x16966d);
-      else if(/Shoes/i.test(n))node.material.color.set(0x172a24);
+      if(/Shirt/i.test(n)){node.material.color.set(KEEPER_GREEN);materials.shirt.push(node.material)}
+      else if(/Pants/i.test(n)){node.material.color.set(KEEPER_GREEN);materials.pants.push(node.material)}
+      else if(/Socks/i.test(n)){node.material.color.set(0x16966d);materials.socks.push(node.material)}
+      else if(/Shoes/i.test(n)){node.material.color.set(0x172a24);materials.shoes.push(node.material)}
       else if(/Hair/i.test(n))node.material.color.set(0x2a1512);
     }else{
-      if(/Shirt2/i.test(n))node.material.color.set(PLAYER_WHITE);
-      else if(/Shirt/i.test(n))node.material.color.set(QATAR_MAROON);
-      else if(/Pants/i.test(n))node.material.color.set(PLAYER_WHITE);
-      else if(/Socks/i.test(n))node.material.color.set(PLAYER_WHITE);
-      else if(/Shoes/i.test(n))node.material.color.set(0x7e1836);
+      if(/Shirt2/i.test(n)){node.material.color.set(PLAYER_WHITE);materials.accent.push(node.material)}
+      else if(/Shirt/i.test(n)){node.material.color.set(QATAR_MAROON);materials.shirt.push(node.material)}
+      else if(/Pants/i.test(n)){node.material.color.set(PLAYER_WHITE);materials.pants.push(node.material)}
+      else if(/Socks/i.test(n)){node.material.color.set(PLAYER_WHITE);materials.socks.push(node.material)}
+      else if(/Shoes/i.test(n)){node.material.color.set(0x7e1836);materials.shoes.push(node.material)}
       else if(/Hair/i.test(n))node.material.color.set(0x2a1512);
     }
     node.material.roughness=Math.max(.55,node.material.roughness??.7)});
@@ -288,7 +302,7 @@ function prepareRealActor(gltf,root,fallback,isKeeper=false){
   model.scale.setScalar(actorScale);
   model.position.y=bodyBox.isEmpty()?0:-bodyBox.min.y*actorScale;
   if(isKeeper)addKeeperGloves(model);
-  root.add(model);const number=makeJerseyNumber(isKeeper?"1":"10",!isKeeper);root.add(number);root.userData.jerseyNumber=number;fallback.visible=false;root.userData.realModel=model;
+  root.add(model);const number=makeJerseyNumber(isKeeper?"1":"10",!isKeeper);root.add(number);root.userData.jerseyNumber=number;fallback.visible=false;root.userData.realModel=model;root.userData.materials=materials;
   root.userData.mixer=new THREE.AnimationMixer(model);root.userData.actions=gltf.animations.map(clip=>root.userData.mixer.clipAction(clip));actorMixers.push(root.userData.mixer);
   const rigNames=["UpperLeg.R","LowerLeg.R","Shoulder.L","Shoulder.R","UpperArm.L","UpperArm.R","Torso"];
   root.userData.rigBase=new Map(rigNames.map(name=>[name,model.getObjectByName(name)?.quaternion.clone()]).filter(([,q])=>q));
@@ -300,7 +314,20 @@ const patchMat=new THREE.MeshStandardMaterial({color:0x171b1d,roughness:.58,side
 [new THREE.Vector3(0,1,0),new THREE.Vector3(0,-1,0),new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,-1),new THREE.Vector3(.7,.55,.45),new THREE.Vector3(-.7,.55,.45),new THREE.Vector3(.7,-.55,-.45),new THREE.Vector3(-.7,-.55,-.45)].forEach(dir=>{dir.normalize();const patch=new THREE.Mesh(new THREE.CircleGeometry(.105,5),patchMat);patch.position.copy(dir).multiplyScalar(.338);patch.lookAt(dir.clone().multiplyScalar(2));ball.add(patch)});
 const trail=[];for(let i=0;i<12;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(.06+i*.006,8,6),new THREE.MeshBasicMaterial({color:0xf6cf68,transparent:true,opacity:0}));scene.add(p);trail.push(p)}
 
-function applyKit(){player.userData.kit?.color.set(QATAR_MAROON);player.userData.shorts?.color.set(PLAYER_WHITE);keeper.userData.kit?.color.set(KEEPER_GREEN);keeper.userData.shorts?.color.set(KEEPER_GREEN)}
+const KEEPER_KITS=["#087a52","#e07a19","#6c3db5","#e2b51f","#7b243d","#156b8d"];
+function colorActor(root,primary,secondary,accent=secondary,shoe="#16191c"){
+  root.userData.kit?.color.set(primary);root.userData.shorts?.color.set(secondary);root.userData.socks?.color.set(accent);root.userData.boot?.color.set(shoe);
+  root.userData.materials?.shirt.forEach(m=>m.color.set(primary));root.userData.materials?.accent.forEach(m=>m.color.set(accent));root.userData.materials?.pants.forEach(m=>m.color.set(secondary));root.userData.materials?.socks.forEach(m=>m.color.set(accent));root.userData.materials?.shoes.forEach(m=>m.color.set(shoe));
+}
+function applyKit(){
+  const selected=state.club||{primary:"#8a1538",secondary:"#f7f7f2",accent:"#f7f7f2"};
+  const opponent=state.opponentClub||{primary:"#f7f7f2",secondary:"#263238",accent:"#f7f7f2"};
+  const keeperColor=KEEPER_KITS[Math.max(0,CLUBS.indexOf(state.opponentClub))%KEEPER_KITS.length];
+  colorActor(player,selected.primary,selected.secondary,selected.accent,selected.primary);
+  teammateActors.forEach(actor=>colorActor(actor,selected.primary,selected.secondary,selected.accent,selected.primary));
+  opponentActors.forEach(actor=>colorActor(actor,opponent.primary,opponent.secondary,opponent.accent,opponent.primary));
+  colorActor(keeper,keeperColor,keeperColor,"#f4f4f0","#111820");
+}
 function resetActors(){player.position.set(0,0,9);player.rotation.set(0,Math.PI,0);keeper.position.set(0,0,-19.2);keeper.rotation.set(0,0,0);player.userData.joints?.arms.forEach((a,i)=>a.rotation.set(0,0,i?-.11:.11));player.userData.joints?.legs.forEach(l=>l.rotation.set(0,0,0));keeper.userData.joints?.arms.forEach((a,i)=>a.rotation.set(0,0,i?-.15:.15));keeper.userData.joints?.legs.forEach(l=>l.rotation.set(0,0,0));restoreRig(player);restoreRig(keeper);playActor(player,"Idle");playActor(keeper,"Idle");ball.position.set(0,.35,4);ball.rotation.set(0,0,0);ball.material.emissive?.set(0x000000);trail.forEach(p=>p.material.opacity=0);goal.scale.z=1}
 function setCamera(mode){
   if(mode==="aim"){camera.position.set(0,4.35,16.2);camera.lookAt(0,1.85,-20)}
@@ -313,10 +340,15 @@ function performShot(isReplay=false){
   const power=Number($("powerRange").value);const aim=state.selectedAim;
   if(!isReplay){
     const keeperGuess={x:(Math.random()*10-5),y:1.1+Math.random()*2.6};
-    const reach=Math.abs(keeperGuess.x-aim.x)<1.7 && Math.abs(keeperGuess.y-aim.y)<1.45;
-    const saveChance=reach?(power<62?.82:power<82?.60:.38):.05;
-    const goalResult=Math.random()>saveChance;
-    state.currentShot={aim:{...aim},power,keeperGuess,goal:goalResult,special:state.special};
+    if(!state.answerCorrect){
+      const missAim={x:aim.x>=0?7.35:-7.35,y:Math.min(4.1,Math.max(.8,aim.y))};
+      state.currentShot={aim:missAim,power,keeperGuess:{x:0,y:1.8},goal:false,outcome:"miss",special:false};
+    }else{
+      const reach=Math.abs(keeperGuess.x-aim.x)<1.7 && Math.abs(keeperGuess.y-aim.y)<1.45;
+      const saveChance=reach?(power<62?.82:power<82?.60:.38):.05;
+      const goalResult=Math.random()>saveChance;
+      state.currentShot={aim:{...aim},power,keeperGuess,goal:goalResult,outcome:goalResult?"goal":"save",special:state.special};
+    }
   }
   const shot=state.currentShot;resetActors();setCamera(isReplay?"replay":"aim");showScreen("aimScreen");$("aimScreen").classList.remove("active");
   playActor(player,"Run");
@@ -337,20 +369,22 @@ function updateShot(now){
   const diveT=Math.max(0,Math.min(1,(t-.25)/.55));keeper.position.x=THREE.MathUtils.lerp(0,s.shot.keeperGuess.x,diveT);keeper.position.y=Math.sin(diveT*Math.PI)*Math.min(1.65,s.shot.keeperGuess.y*.55);keeper.rotation.z=-Math.sign(s.shot.keeperGuess.x||1)*diveT*.85;if(keeper.userData.realModel){if(!s.keeperStopped){keeper.userData.mixer.stopAllAction();restoreRig(keeper);s.keeperStopped=true}const left=keeper.userData.realModel.getObjectByName("UpperArm.L"),right=keeper.userData.realModel.getObjectByName("UpperArm.R");if(left)left.rotation.z=.9;if(right)right.rotation.z=-.9}else{keeper.userData.joints.arms[0].rotation.z=.8;keeper.userData.joints.arms[1].rotation.z=-.8}
   if(s.shot.special)trail.forEach((p,i)=>{const lag=Math.max(0,t-i*.022);p.position.set(THREE.MathUtils.lerp(0,target.x,lag),THREE.MathUtils.lerp(.35,target.y,lag)+Math.sin(lag*Math.PI)*(.7+s.shot.power/160),THREE.MathUtils.lerp(4,-20.1,lag));p.material.opacity=(1-i/trail.length)*.5});
   if(state.cinematic&&!s.isReplay){camera.position.z=THREE.MathUtils.lerp(17,7,t);camera.position.y=THREE.MathUtils.lerp(4.9,3.4,t);camera.lookAt(ball.position)}
-  if(t>=1&&!s.finished){s.finished=true;if(s.shot.goal){goal.scale.z=1.18;audio.goal();setTimeout(()=>playActor(player,"Clapping"),180)}else{ball.position.copy(keeper.position).add(new THREE.Vector3(0,1.6,.2));audio.save()}setTimeout(()=>finishShot(s),650)}
+  if(t>=1&&!s.finished){s.finished=true;if(s.shot.goal){goal.scale.z=1.18;audio.goal();setTimeout(()=>playActor(player,"Clapping"),180)}else if(s.shot.outcome==="save"){ball.position.copy(keeper.position).add(new THREE.Vector3(0,1.6,.2));audio.save()}else{audio.wrong()}setTimeout(()=>finishShot(s),650)}
 }
 
 function finishShot(anim){
   if(shotAnim!==anim)return;shotAnim=null;
   if(!anim.isReplay){if(anim.shot.goal)state.goals++;updateHUD()}
-  $("resultOverlay").classList.toggle("save",!anim.shot.goal);
-  $("resultWord").textContent=anim.shot.goal?"هــدف!":"تصدٍّ!";
-  $("resultDetail").textContent=anim.shot.goal?(anim.shot.special?"إجابة صحيحة وركلة نحو حاسمة!":"إجابة صحيحة وتسديدة موفقة."):"إجابتك النحوية صحيحة، لكن الحارس تصدّى للركلة.";
+  $("resultOverlay").classList.toggle("save",anim.shot.outcome==="save");
+  $("resultOverlay").classList.toggle("miss",anim.shot.outcome==="miss");
+  $("resultWord").textContent=anim.shot.goal?"هــدف!":anim.shot.outcome==="miss"?"خارج المرمى!":"تصدٍّ!";
+  $("resultDetail").textContent=anim.shot.goal?(anim.shot.special?"إجابة صحيحة وركلة نحو حاسمة!":"إجابة صحيحة وتسديدة موفقة."):anim.shot.outcome==="miss"?"الإجابة غير صحيحة؛ نُفذت الركلة التدريبية لكنها لم تصب المرمى.":`إجابتك النحوية صحيحة، لكن حارس ${state.opponentClub.name} تصدّى للركلة.`;
   $("resultOverlay").classList.add("active");
 }
 
 function animate(now){requestAnimationFrame(animate);const dt=Math.min(.04,clock.getDelta());introT+=dt;actorMixers.forEach(m=>m.update(dt));
   if(!shotAnim){player.position.y=Math.sin(introT*2)*.012;keeper.position.x=Math.sin(introT*.8)*.7}
+  teammateActors.forEach((actor,i)=>actor.position.y=Math.sin(introT*1.7+i)*.018);opponentActors.forEach((actor,i)=>actor.position.y=Math.sin(introT*1.5+i+2)*.018);
   if(state.phase==="start"){camera.position.x=Math.sin(introT*.23)*8;camera.position.y=6.5+Math.sin(introT*.31)*1.2;camera.position.z=16+Math.cos(introT*.23)*4;camera.lookAt(0,1.8,-12)}
   updateShot(now);renderer.render(scene,camera)}
 
@@ -364,7 +398,7 @@ $("replayBtn").addEventListener("click",()=>{$("resultOverlay").classList.remove
 $("nextBtn").addEventListener("click",()=>{$("resultOverlay").classList.remove("active");state.kickIndex++;if(state.kickIndex>=state.kickCount)showFinal();else renderQuestion()});
 $("reviewBtn").addEventListener("click",renderReview);$("reviewBackBtn").addEventListener("click",()=>showScreen("finalScreen"));
 $("restartBtn").addEventListener("click",()=>{resetMatch();$("hud").classList.remove("hidden");renderQuestion()});
-$("changeClubBtn").addEventListener("click",()=>{state.club=null;$("toMatchBtn").disabled=true;document.querySelectorAll(".club-card").forEach(c=>c.classList.remove("selected"));showScreen("clubScreen")});
+$("changeClubBtn").addEventListener("click",()=>{state.club=null;state.opponentClub=null;$("teamChoiceHint").textContent="الاختيار الأول لفريقك، والثاني للمنافس";$("toMatchBtn").disabled=true;document.querySelectorAll(".club-card").forEach(c=>c.classList.remove("selected","selected-primary","selected-opponent"));applyKit();showScreen("clubScreen")});
 $("teacherBtn").addEventListener("click",()=>$("teacherDialog").showModal());
 $("applyTeacherBtn").addEventListener("click",e=>{e.preventDefault();state.kickCount=Number(document.querySelector('input[name="kickCount"]:checked').value);state.difficulty=document.querySelector('input[name="difficulty"]:checked').value;state.cinematic=$("cinematicToggle").checked;state.sound=$("audioToggle").checked;audio.setEnabled(state.sound);$("soundBtn").innerHTML=`<i data-lucide="${state.sound?"volume-2":"volume-x"}"></i>`;lucide.createIcons();$("teacherDialog").close()});
 $("soundBtn").addEventListener("click",()=>{state.sound=!state.sound;$("audioToggle").checked=state.sound;audio.setEnabled(state.sound);$("soundBtn").innerHTML=`<i data-lucide="${state.sound?"volume-2":"volume-x"}"></i>`;lucide.createIcons()});
