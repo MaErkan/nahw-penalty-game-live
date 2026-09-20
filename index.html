@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#071416" />
+  <title>ركلات لا النافية للجنس</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23071416'/%3E%3Ccircle cx='32' cy='32' r='20' fill='%23f5f1e8'/%3E%3Cpath d='M32 18l8 6-3 9H27l-3-9zM16 29l9 3 3 10-7 6M48 29l-9 3-3 10 7 6M27 52l5-9 5 9' fill='%23171b1d'/%3E%3C/svg%3E" />
+  <link rel="preload" as="image" href="./assets/qatar-crowd-reference.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="gameCanvas" aria-label="ملعب ركلات الجزاء ثلاثي الأبعاد"></canvas>
+    <div class="vignette"></div>
+
+    <header id="hud" class="hud hidden" aria-live="polite">
+      <div class="hud-team"><span id="teamSwatch"></span><strong id="hudTeam">السد</strong></div>
+      <div class="hud-score">
+        <span>الدقة <b id="hudCorrect">0</b></span>
+        <span>الأهداف <b id="hudGoals">0</b></span>
+        <span>الركلة <b id="hudKick">1 / 5</b></span>
+      </div>
+      <div class="streak" id="streakMeter"><span></span><em>ركلة الحسم</em></div>
+    </header>
+
+    <button id="teacherBtn" class="icon-button top-action" aria-label="وضع المعلم" title="وضع المعلم"><i data-lucide="settings-2"></i></button>
+    <button id="soundBtn" class="icon-button sound-action" aria-label="تشغيل أو إيقاف الصوت" title="الصوت"><i data-lucide="volume-2"></i></button>
+
+    <main id="uiLayer">
+      <section id="startScreen" class="screen active start-screen">
+        <div class="eyebrow">الوحدة الثالثة · بناء الجملة</div>
+        <h1><span>ركلات</span> لا النافية للجنس</h1>
+        <p>أجب بدقة، اختر زاوية المرمى، ثم سدّد.</p>
+        <button id="startBtn" class="primary-btn">ابدأ المباراة <i data-lucide="circle-play"></i></button>
+        <div class="start-meta"><span>الصف العاشر</span><span>لا النافية للجنس (1)</span></div>
+      </section>
+
+      <section id="clubScreen" class="screen club-screen">
+        <div class="section-head">
+          <span>التشكيلة</span>
+          <h2>اختر النادي الذي ستمثله</h2>
+        </div>
+        <div id="clubGrid" class="club-grid"></div>
+        <button id="toMatchBtn" class="primary-btn" disabled>إلى الملعب <i data-lucide="chevron-left"></i></button>
+      </section>
+
+      <section id="questionScreen" class="screen question-screen">
+        <div class="question-card">
+          <div class="question-topline"><span id="questionCategory">التعريف والعمل</span><b id="questionNumber">01</b></div>
+          <h2 id="questionText"></h2>
+          <div id="options" class="options"></div>
+          <div id="feedback" class="feedback" role="status"></div>
+          <button id="continueBtn" class="primary-btn hidden">إلى نقطة الجزاء <i data-lucide="crosshair"></i></button>
+        </div>
+      </section>
+
+      <section id="aimScreen" class="screen aim-screen">
+        <div class="aim-instruction"><b>حدّد الزاوية</b><span>المس داخل المرمى، ثم اضبط القوة</span></div>
+        <div id="aimPad" class="aim-pad" aria-label="منطقة تحديد زاوية التسديد">
+          <div class="target" id="target"></div>
+          <div class="goal-grid"></div>
+        </div>
+        <div class="power-row">
+          <label for="powerRange">قوة التسديد</label>
+          <input id="powerRange" type="range" min="35" max="100" value="72" />
+          <output id="powerValue">72%</output>
+        </div>
+        <button id="shootBtn" class="primary-btn shoot-btn" disabled>سدّد <i data-lucide="zap"></i></button>
+      </section>
+
+      <section id="resultOverlay" class="result-overlay" aria-live="assertive">
+        <div class="result-word" id="resultWord">هــدف!</div>
+        <p id="resultDetail"></p>
+        <button id="replayBtn" class="secondary-btn"><i data-lucide="rotate-ccw"></i> إعادة اللقطة</button>
+        <button id="nextBtn" class="primary-btn">السؤال التالي <i data-lucide="chevron-left"></i></button>
+      </section>
+
+      <section id="finalScreen" class="screen final-screen">
+        <div class="final-kicker">انتهت المباراة</div>
+        <h2 id="finalClub">السد</h2>
+        <div class="score-ring"><strong id="finalAccuracy">0%</strong><span>الدقة النحوية</span></div>
+        <div class="final-stats">
+          <div><b id="finalCorrect">0/5</b><span>إجابات صحيحة</span></div>
+          <div><b id="finalGoals">0/5</b><span>أهداف</span></div>
+          <div><b id="finalStreak">0</b><span>أطول سلسلة</span></div>
+        </div>
+        <p id="finalMessage"></p>
+        <div class="final-actions">
+          <button id="reviewBtn" class="secondary-btn"><i data-lucide="book-open-check"></i> مراجعة الأخطاء</button>
+          <button id="restartBtn" class="primary-btn">العب مرة أخرى <i data-lucide="refresh-cw"></i></button>
+          <button id="changeClubBtn" class="text-btn">اختر ناديًا آخر</button>
+        </div>
+      </section>
+
+      <section id="reviewScreen" class="screen review-screen">
+        <div class="section-head"><span>مراجعة تعليمية</span><h2>أخطائي</h2></div>
+        <div id="reviewList" class="review-list"></div>
+        <button id="reviewBackBtn" class="primary-btn">العودة إلى النتيجة</button>
+      </section>
+    </main>
+
+    <dialog id="teacherDialog">
+      <form method="dialog" class="teacher-panel">
+        <div class="dialog-head"><div><span>إعدادات سريعة</span><h2>وضع المعلم</h2></div><button value="cancel" class="icon-button" aria-label="إغلاق"><i data-lucide="x"></i></button></div>
+        <fieldset><legend>عدد الركلات</legend><label><input type="radio" name="kickCount" value="5" checked> 5 ركلات</label><label><input type="radio" name="kickCount" value="10"> 10 ركلات</label></fieldset>
+        <fieldset><legend>مستوى الأسئلة</legend><label><input type="radio" name="difficulty" value="all" checked> متدرج</label><label><input type="radio" name="difficulty" value="basic"> أساسي</label><label><input type="radio" name="difficulty" value="advanced"> متقدم</label></fieldset>
+        <label class="toggle-row"><span>المؤثرات السينمائية</span><input id="cinematicToggle" type="checkbox" checked></label>
+        <label class="toggle-row"><span>الصوت</span><input id="audioToggle" type="checkbox" checked></label>
+        <button id="applyTeacherBtn" value="default" class="primary-btn">حفظ الإعدادات</button>
+      </form>
+    </dialog>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.170.0/build/three.module.js"}}</script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
